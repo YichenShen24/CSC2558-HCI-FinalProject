@@ -96,7 +96,7 @@ controls = dbc.Card(
                             value=388
                         )
                     ], 
-                    width=12
+                    # width=12
                 ),
                 dbc.Col(
                     [
@@ -119,7 +119,7 @@ controls = dbc.Card(
                             value = '__all__'
                         )
                     ], 
-                    width=12
+                    # width=12
                 ),
                 dbc.Col(
                     [
@@ -135,7 +135,7 @@ controls = dbc.Card(
                             id='tab_arm_dropdown_div'
                         )
                     ], 
-                    width=12
+                    # width=12
                 ),
                 dbc.Col(
                     [
@@ -151,7 +151,7 @@ controls = dbc.Card(
                             id='tab_context_dropdown_div'
                         ),
                     ], 
-                    width=12
+                    # width=12
                 ),
             ]
         )
