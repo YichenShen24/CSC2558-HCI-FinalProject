@@ -355,10 +355,10 @@ app.layout = dbc.Container(
                 'marginBottom':20
             }
         ),
-        dbc.Row(
+        dbc.Col(
             [
-                dbc.Col(controls, width=12, xl=4,  className="h-100"),
-                dbc.Col(
+                dbc.Row(controls, className="h-100"),
+                dbc.Row(
                     [
                         summary_table,
                         arm_allocation_plot,
@@ -370,8 +370,7 @@ app.layout = dbc.Container(
                         ),
                         context_group_bar_plot
                     ], 
-                    width=12,
-                    xl=8
+                  
                 ),
             ]
         ),
