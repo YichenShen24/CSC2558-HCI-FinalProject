@@ -4,6 +4,7 @@ Flask App using Plotly for visualizing data in MOOClet
 
 ## Steps to run the program
 1. create a config.py file in the main folder, and add the TOKEN to the file
+2. Download the dataset folder to the main folder
 
 `
 python3 -m venv ./venv
