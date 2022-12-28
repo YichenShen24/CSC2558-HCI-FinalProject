@@ -303,7 +303,8 @@ context_group_bar_plot = dbc.Card(
                 'marginBottom': 5
             }
         ),
-        dcc.Graph(id = 'summary_context_bar_plot')
+        dcc.Graph(id = 'summary_context_bar_plot'),
+        #dcc.Graph(id = 'statistic')
     ],
     className="m-2"
 )
@@ -368,7 +369,8 @@ app.layout = dbc.Container(
                                 dbc.Col([missing_data_pie_chart], width=6, lg=5, md=12)
                             ]
                         ),
-                        context_group_bar_plot
+                        context_group_bar_plot,
+                        #statistic_analysis
                     ], 
                   
                 ),
@@ -463,6 +465,7 @@ def update_summary_table(df, dropdown_value, tab_timezone_change_type, tab_timer
         Input(component_id='summary_reward_time_slider', component_property='value')
     ]
 )
+
 def update_summary_reward_bar_plot(df, policy_dropdown_value, arm_dropdown_value, summary_reward_timezone_change_type, summary_reward_timerange_change_type, summary_reward_time_slider):
     print(policy_dropdown_value, arm_dropdown_value, summary_reward_timezone_change_type, summary_reward_timerange_change_type, summary_reward_time_slider)
     df_query, reward_var = get_dataset(df, policy_dropdown_value)
@@ -526,6 +529,99 @@ def update_summary_context_bar_plot(df, policy_dropdown_value, arm_dropdown_valu
         reward_var: ["first", "mean", "std", "sem", "count"]
     })
 
+    print(df_query.head(5))
+
+
+    all_query = df_query.groupby(["arm"]).agg({
+        "arm": ["first"],
+        reward_var: ["first", "mean", "std", "sem", "count"]
+    })
+    all_query[(context_dropdown_value, "first")] = "Overall Average"
+
+    df_query = pd.concat([context_query, all_query])
+
+    df_query[(context_dropdown_value, "first")] = df_query[(
+        context_dropdown_value, "first")].astype(str)
+
+    if arm_dropdown_value != "__all__":
+        df_query = df_query[df_query[("arm", "first")] == arm_dropdown_value]
+
+    data = []
+    stat = []
+    for arm in df_query[("arm", "first")].unique().tolist():
+        arm_df = df_query[df_query[("arm", "first")] == arm]
+        counts = arm_df[(reward_var, "count")].values.tolist()
+        means = [round(item, 3) for item in arm_df[(reward_var, "mean")].values.tolist()]
+        stds = [round(item, 3) for item in arm_df[(reward_var, "std")].values.tolist()]
+        sems = [round(item, 3) for item in arm_df[(reward_var, "sem")].values.tolist()]
+
+        texts = []
+        for count, mean, std, sem in zip(counts, means, stds, sems):
+            text = f"count = {count} mean = {mean} std = {std} sem= {sem}"
+            texts.append(text)
+
+        arm_data = go.Bar(
+            name=arm,
+            x=df_query[(context_dropdown_value, "first")].unique().tolist(),
+            y=means,
+            error_y = dict(type='data', array=stds),
+            # marker = dict(color = 'rgba(255, 255, 128, 0.5)', line=dict(color='rgb(0,0,0)',width=1.5)),
+            hovertext=texts
+        )
+
+        data.append(arm_data)
+
+
+    fig = go.Figure(
+        data=data,
+        layout=go.Layout(barmode="group"),
+        layout_yaxis_range=[0, 2]
+    )
+    #now update the statistic result
+
+
+    fig.add_annotation(dict(font=dict(size=15),
+                            x=0,
+                            y=-0.12,
+                            showarrow=False,
+                            text="A very clear explanation",
+                            textangle=0,
+                            xanchor='left',
+                            xref="paper",
+                            yref="paper"))
+
+    fig.update_layout(
+        title='Mean Reward in Different Context Group',
+        xaxis_title='Context Group',
+        yaxis_title='Mean Reward'
+    )
+
+    return fig
+
+@app.callback(
+    Output(component_id='statistic',
+           component_property='figure'),
+    [
+        Input(component_id='selected_mooclet_data', component_property='data'),
+        Input(component_id='tab_policy_dropdown', component_property='value'),
+        Input(component_id='tab_arm_dropdown', component_property='value'),
+        Input(component_id='tab_context_dropdown', component_property='value'),
+        Input(component_id='summary_context_timezone_change_type', component_property='value'),
+        Input(component_id='summary_context_timerange_change_type', component_property='value'),
+        Input(component_id='summary_context_time_slider', component_property='value')
+    ]
+)
+def update_statistic(df, policy_dropdown_value, arm_dropdown_value, context_dropdown_value, summary_context_timezone_change_type, summary_context_timerange_change_type, summary_context_time_slider):
+    print(policy_dropdown_value, arm_dropdown_value, context_dropdown_value, summary_context_timezone_change_type, summary_context_timerange_change_type, summary_context_time_slider)
+    df_query, reward_var = get_dataset(df, policy_dropdown_value)
+    df_query, _ = filter_by_time(df_query, summary_context_timezone_change_type, summary_context_timerange_change_type, summary_context_time_slider)
+
+    context_query = df_query.groupby([context_dropdown_value, "arm"]).agg({
+        context_dropdown_value: ["first"],
+        "arm": ["first"],
+        reward_var: ["first", "mean", "std", "sem", "count"]
+    })
+
     all_query = df_query.groupby(["arm"]).agg({
         "arm": ["first"],
         reward_var: ["first", "mean", "std", "sem", "count"]
@@ -557,6 +653,7 @@ def update_summary_context_bar_plot(df, policy_dropdown_value, arm_dropdown_valu
             name=arm,
             x=df_query[(context_dropdown_value, "first")].unique().tolist(),
             y=means,
+            error_y = dict(type='data', array=stds),
             # marker = dict(color = 'rgba(255, 255, 128, 0.5)', line=dict(color='rgb(0,0,0)',width=1.5)),
             hovertext=texts
         )
