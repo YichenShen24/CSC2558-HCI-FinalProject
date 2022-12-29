@@ -13,7 +13,9 @@ import dash
 
 
 from config import TOKEN
-from utils import get_dataset, filter_by_time
+#from utils import get_dataset, filter_by_time
+from utils import *
+from scipy.stats import f_oneway
 
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
@@ -528,9 +530,12 @@ def update_summary_context_bar_plot(df, policy_dropdown_value, arm_dropdown_valu
         "arm": ["first"],
         reward_var: ["first", "mean", "std", "sem", "count"]
     })
-
-    print(df_query.head(5))
-
+    module = ""
+    if 'MHAwave1ModularMessageReward' in df_query.columns:
+        module = "Rationale"
+        # this is for rationale
+        arm_list_with_rewards = group_arm_with_reward_value_ANOVA(df_query, 'arm', 'MHAwave1ModularMessageReward')
+        p_value = anova_one_way(arm_list_with_rewards)
 
     all_query = df_query.groupby(["arm"]).agg({
         "arm": ["first"],
@@ -547,14 +552,15 @@ def update_summary_context_bar_plot(df, policy_dropdown_value, arm_dropdown_valu
         df_query = df_query[df_query[("arm", "first")] == arm_dropdown_value]
 
     data = []
-    stat = []
+    upper_bound = 0.9
     for arm in df_query[("arm", "first")].unique().tolist():
         arm_df = df_query[df_query[("arm", "first")] == arm]
         counts = arm_df[(reward_var, "count")].values.tolist()
         means = [round(item, 3) for item in arm_df[(reward_var, "mean")].values.tolist()]
         stds = [round(item, 3) for item in arm_df[(reward_var, "std")].values.tolist()]
         sems = [round(item, 3) for item in arm_df[(reward_var, "sem")].values.tolist()]
-
+        if upper_bound < get_upper_bound(means, stds):
+            upper_bound = get_upper_bound(means, stds)
         texts = []
         for count, mean, std, sem in zip(counts, means, stds, sems):
             text = f"count = {count} mean = {mean} std = {std} sem= {sem}"
@@ -571,24 +577,32 @@ def update_summary_context_bar_plot(df, policy_dropdown_value, arm_dropdown_valu
 
         data.append(arm_data)
 
-
+    get_upper_bound(mean, std)
     fig = go.Figure(
         data=data,
         layout=go.Layout(barmode="group"),
-        layout_yaxis_range=[0, 2]
+        layout_yaxis_range=[0, upper_bound + 0.1]
     )
-    #now update the statistic result
 
+    if module == "Rationale":
+        # now update the statistic result set the  confidence_level you wang
+        confidence_level = 0.99
+        threshold_p = 1 - confidence_level
 
-    fig.add_annotation(dict(font=dict(size=15),
-                            x=0,
-                            y=-0.12,
-                            showarrow=False,
-                            text="A very clear explanation",
-                            textangle=0,
-                            xanchor='left',
-                            xref="paper",
-                            yref="paper"))
+        if p_value < threshold_p:
+            anotation_text = "Statistc ANOVA One Way test shows that there is a difference between overall reward of different arms."
+        else:
+            anotation_text = "Statistc ANOVA One Way test shows that there is NO difference between overall reward of different arms, no further test is needed."
+
+        fig.add_annotation(dict(font=dict(size=15),
+                                x=0,
+                                y=-0.25,
+                                showarrow=False,
+                                text=anotation_text,
+                                textangle=0,
+                                xanchor='left',
+                                xref="paper",
+                                yref="paper"))
 
     fig.update_layout(
         title='Mean Reward in Different Context Group',
@@ -962,6 +976,8 @@ def update_tab_context_dropdown(data):
         )
     ]
 
+def anova_one_way(si):
+    return f_oneway(*si).pvalue
 
 if __name__ == '__main__': 
     app.run_server()

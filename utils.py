@@ -1,5 +1,6 @@
 import pandas as pd
 import json
+import numpy as np
 
 
 def get_dataset(df, dropdown_value):
@@ -54,3 +55,14 @@ def filter_by_time(df_query, timezone_change_type, timerange_change_type, time_s
         ]
     
     return df_query, time_range
+
+def group_arm_with_reward_value_ANOVA(df, arm_string, reward_value_string):
+    clean_data = df.loc[df[reward_value_string].notnull(), [arm_string, reward_value_string]]
+    #print(clean_data.size)
+    #make sure this thing change with the date
+    grouped = clean_data.groupby(arm_string)[reward_value_string].apply(list)
+    return grouped
+    #return f_oneway(*si).pvalue
+
+def get_upper_bound(mean, std):
+    return np.max(np.add(mean, std))
